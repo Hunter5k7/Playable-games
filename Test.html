@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Ninja Giải Cứu</title>
+    <style>
+      :root {
+        --bg-top: #0b0d17;
+        --bg-bottom: #1b1230;
+        --steel: #33394a;
+        --steel-dark: #1f232f;
+        --ninja: #232733;
+        --accent: #d7263d;
+        --cream: #f2ede4;
+        --gold: #f4c95d;
+        --puncher: #e08e45;
+        --swordsman: #4f8a76;
+        --gunner: #8e44ad;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+        font-family: "Trebuchet MS", system-ui, sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        color: var(--cream);
+      }
+      #game-wrap {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+      }
+      h1 {
+        font-size: 21px;
+        letter-spacing: 1px;
+        margin: 4px 0 0 0;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+      }
+      #hud {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        background: var(--steel);
+        border: 3px solid var(--steel-dark);
+        border-radius: 10px;
+        padding: 7px 16px;
+        box-shadow: 0 4px 0 var(--steel-dark);
+        font-weight: bold;
+        font-size: 14px;
+        flex-wrap: wrap;
+        justify-content: center;
+        max-width: 460px;
+      }
+      #hearts {
+        display: flex;
+        gap: 2px;
+      }
+      canvas {
+        background: radial-gradient(
+          ellipse at 50% 10%,
+          #241b3d 0%,
+          #0b0d17 75%
+        );
+        border: 4px solid var(--steel-dark);
+        border-radius: 12px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+        touch-action: none;
+      }
+      #msg {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        background: rgba(8, 8, 14, 0.88);
+        border-radius: 12px;
+        text-align: center;
+        gap: 12px;
+        padding: 16px;
+      }
+      #msg h2 {
+        margin: 0;
+        font-size: 24px;
+      }
+      #msg p {
+        margin: 0;
+        opacity: 0.85;
+        font-size: 13px;
+        max-width: 340px;
+        line-height: 1.5;
+      }
+      button {
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        padding: 10px 22px;
+        border-radius: 8px;
+        font-weight: bold;
+        font-size: 15px;
+        cursor: pointer;
+        box-shadow: 0 3px 0 #8f1929;
+      }
+      button:active {
+        transform: translateY(2px);
+        box-shadow: 0 1px 0 #8f1929;
+      }
+      #hint {
+        font-size: 11.5px;
+        opacity: 0.7;
+        margin-top: 2px;
+        text-align: center;
+        max-width: 460px;
+      }
+      #touch-controls {
+        display: none;
+        gap: 8px;
+        margin-top: 4px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      #touch-controls button {
+        width: 58px;
+        height: 48px;
+        font-size: 16px;
+        padding: 0;
+      }
+      #touch-controls button.wide {
+        width: 76px;
+        background: var(--steel);
+        box-shadow: 0 3px 0 var(--steel-dark);
+      }
+      @media (max-width: 640px) {
+        #touch-controls {
+          display: flex;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game-wrap">
+      <h1>🥷 Ninja Giải Cứu</h1>
+      <div id="hud">
+        <div id="hearts"></div>
+        <div>🔫 <span id="ammo">12</span></div>
+        <div>💀 Còn lại: <span id="enemyCount">0</span></div>
+      </div>
+      <div style="position:relative;">
+        <canvas id="game" width="500" height="360"></canvas>
+        <div id="msg">
+          <h2 id="msgTitle">Em gái đang chờ...</h2>
+          <p id="msgSub">
+            Dọn sạch băng đảng để mở đường tới sào huyệt của trùm. J = chém
+            katana (cận chiến, luôn dùng được). K = bắn súng (12 viên, hết phải
+            nhặt băng đạn rơi từ địch). Cẩn thận: đấm/chém/súng của địch đều gây
+            sát thương!
+          </p>
+          <button id="startBtn">Bắt đầu</button>
+        </div>
+      </div>
+      <div id="hint">
+        ← → / A D di chuyển · Space/↑ nhảy · J chém katana · K bắn súng
+      </div>
+      <div id="touch-controls">
+        <button id="btnLeft">◀</button>
+        <button id="btnJump" class="wide">Nhảy</button>
+        <button id="btnRight">▶</button>
+        <button id="btnKatana" class="wide">Chém</button>
+        <button id="btnGun" class="wide">Bắn</button>
+      </div>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("game");
+      const ctx = canvas.getContext("2d");
+      const W = canvas.width,
+        H = canvas.height;
+
+      const heartsEl = document.getElementById("hearts");
+      const ammoEl = document.getElementById("ammo");
+      const enemyCountEl = document.getElementById("enemyCount");
+      const msg = document.getElementById("msg");
+      const msgTitle = document.getElementById("msgTitle");
+      const msgSub = document.getElementById("msgSub");
+      const startBtn = document.getElementById("startBtn");
+
+      let keys = {};
+      let running = false;
+      let cameraX = 0;
+      let groundLevel = H - 40;
+
+      const GRAVITY = 0.6;
+      const JUMP_FORCE = -11;
+      const MOVE_SPEED = 3;
+
+      // ---------- Nhân vật ninja ----------
+      const ninja = {
+        x: 60,
+        y: 0,
+        w: 26,
+        h: 32,
+        vx: 0,
+        vy: 0,
+        onGround: false,
+        facing: 1,
+        maxHealth: 3,
+        health: 3,
+        ammo: 12,
+        pitTimer: 0,
+        katanaCooldown: 0,
+        gunCooldown: 0,
+        invuln: 0,
+        slashTimer: 0,
+        walkCycle: 0,
+      };
+
+      let platforms = [];
+      let enemies = [];
+      let playerBullets = [];
+      let enemyBullets = [];
+      let ammoPickups = [];
+      let spikes = [];
+      let pits = [];
+      let swingers = [];
+      let gate = null;
+      let boss = null;
+      let levelWidth = 0;
+
+      function makeEnemy(type, x, y) {
+        return {
+          type,
+          x,
+          y,
+          w: 24,
+          h: 30,
+          alive: true,
+          baseX: x,
+          dir: Math.random() < 0.5 ? -1 : 1,
+          speed: type === "puncher" ? 2.1 : 1.5,
+          attackTimer: 0.6 + Math.random() * 0.8,
+          contactCooldown: 0,
+          range: type === "gunner" ? 300 : 160,
+          walkCycle: 0,
+        };
+      }
+
+      function resetLevel() {
+        platforms = [];
+        enemies = [];
+        playerBullets = [];
+        enemyBullets = [];
+        ammoPickups = [];
+        spikes = [];
+        pits = [];
+        swingers = [];
+        cameraX = 0;
+        ninja.x = 60;
+        ninja.y = groundLevel - ninja.h;
+        ninja.vx = 0;
+        ninja.vy = 0;
+        ninja.health = ninja.maxHealth;
+        ninja.ammo = 12;
+        ninja.walkCycle = 0;
+        ninja.katanaCooldown = 0;
+        ninja.gunCooldown = 0;
+        ninja.invuln = 0;
+        ninja.pitTimer = 0;
+
+        const types = ["puncher", "gunner", "swordsman"];
+        const pitDepth = Math.min(65, H - 8 - groundLevel);
+        const floorY = groundLevel + pitDepth;
+        let px = 240;
+
+        for (let i = 0; i < 20; i++) {
+          const type = types[i % 3];
+          const elevated = i % 3 === 1;
+          if (elevated) {
+            const w = 150;
+            platforms.push({ x: px, y: groundLevel - 90, w: w, h: 16 });
+            enemies.push(
+              makeEnemy(type, px + w / 2 - 12, groundLevel - 90 - 30),
+            );
+          } else {
+            enemies.push(makeEnemy(type, px, groundLevel - 30));
+          }
+
+          // xen kẽ chướng ngại vật giữa các tên địch
+          const roll = Math.random();
+          if (roll < 0.22) {
+            // gai nhọn trên mặt đất
+            spikes.push({ x: px + 95, y: groundLevel - 14, w: 26, h: 14 });
+          } else if (roll < 0.42) {
+            // hố sụp: rơi xuống mất máu, chạm đáy sẽ nảy lên, không thoát ra sẽ mất máu liên tục
+            const pitW = 65 + Math.random() * 25;
+            pits.push({ x: px + 90, w: pitW, floorY });
+          } else if (roll < 0.62) {
+            // chướng ngại treo lơ lửng, đung đưa qua lại trên không
+            swingers.push({
+              cx: px + 95,
+              cy: groundLevel - 135 - Math.random() * 35,
+              range: 50 + Math.random() * 25,
+              speed: 0.8 + Math.random() * 0.5,
+              phase: Math.random() * Math.PI * 2,
+              r: 11,
+            });
+          }
+
+          px += 165 + Math.random() * 55;
+        }
+
+        levelWidth = px + 250;
+
+        // dựng các đoạn nền vững chắc, chừa khoảng trống tại vị trí hố + đáy hố có thể nảy
+        let cursor = 0;
+        const sortedPits = [...pits].sort((a, b) => a.x - b.x);
+        for (const pit of sortedPits) {
+          if (pit.x > cursor) {
+            platforms.push({
+              x: cursor,
+              y: groundLevel,
+              w: pit.x - cursor,
+              h: 40,
+              ground: true,
+            });
+          }
+          platforms.push({
+            x: pit.x,
+            y: pit.floorY,
+            w: pit.w,
+            h: 20,
+            ground: true,
+            bounce: true,
+          });
+          cursor = pit.x + pit.w;
+        }
+        if (cursor < levelWidth) {
+          platforms.push({
+            x: cursor,
+            y: groundLevel,
+            w: levelWidth - cursor,
+            h: 40,
+            ground: true,
+          });
+        }
+
+        gate = {
+          x: levelWidth - 120,
+          y: groundLevel - 260,
+          w: 18,
+          h: 260,
+          locked: true,
+        };
+
+        boss = {
+          x: levelWidth + 150,
+          y: groundLevel - 50,
+          w: 44,
+          h: 50,
+          hp: 20,
+          maxHp: 20,
+          vx: 0,
+          dir: 1,
+          speed: 2.2,
+          active: false,
+          mode: "patrol",
+          modeTimer: 1.4,
+          contactCooldown: 0,
+          arenaMin: levelWidth + 120,
+          arenaMax: levelWidth + 680,
+          alive: true,
+          walkCycle: 0,
+        };
+
+        // đấu trường trùm cũng cần nền vững chắc
+        platforms.push({
+          x: levelWidth,
+          y: groundLevel,
+          w: 800,
+          h: 40,
+          ground: true,
+        });
+        levelWidth = boss.arenaMax + 150;
+
+        updateHUD();
+      }
+
+      function updateHUD() {
+        heartsEl.innerHTML = "";
+        for (let i = 0; i < ninja.maxHealth; i++) {
+          const span = document.createElement("span");
+          span.textContent = i < ninja.health ? "❤️" : "🖤";
+          heartsEl.appendChild(span);
+        }
+        ammoEl.textContent = ninja.ammo;
+        const remaining = enemies.filter((e) => e.alive).length;
+        enemyCountEl.textContent = remaining;
+      }
+
+      // ---------- Input ----------
+      window.addEventListener("keydown", (e) => {
+        keys[e.code] = true;
+        if (
+          [
+            "Space",
+            "ArrowUp",
+            "ArrowLeft",
+            "ArrowRight",
+            "KeyJ",
+            "KeyK",
+          ].includes(e.code)
+        )
+          e.preventDefault();
+      });
+      window.addEventListener("keyup", (e) => {
+        keys[e.code] = false;
+      });
+
+      function tapKey(code) {
+        keys[code] = true;
+        setTimeout(() => (keys[code] = false), 80);
+      }
+      document.getElementById("btnJump").addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        tapKey("Space");
+      });
+      document
+        .getElementById("btnKatana")
+        .addEventListener("touchstart", (e) => {
+          e.preventDefault();
+          tapKey("KeyJ");
+        });
+      document.getElementById("btnGun").addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        tapKey("KeyK");
+      });
+      document.getElementById("btnLeft").addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        keys["ArrowLeft"] = true;
+      });
+      document.getElementById("btnLeft").addEventListener("touchend", (e) => {
+        e.preventDefault();
+        keys["ArrowLeft"] = false;
+      });
+      document
+        .getElementById("btnRight")
+        .addEventListener("touchstart", (e) => {
+          e.preventDefault();
+          keys["ArrowRight"] = true;
+        });
+      document.getElementById("btnRight").addEventListener("touchend", (e) => {
+        e.preventDefault();
+        keys["ArrowRight"] = false;
+      });
+
+      startBtn.addEventListener("click", () => {
+        resetLevel();
+        msg.style.display = "none";
+        running = true;
+        requestAnimationFrame(loop);
+      });
+
+      function rectsOverlap(a, b) {
+        return (
+          a.x < b.x + b.w &&
+          a.x + a.w > b.x &&
+          a.y < b.y + b.h &&
+          a.y + a.h > b.y
+        );
+      }
+
+      function endGame(win) {
+        running = false;
+        msg.style.display = "flex";
+        msgTitle.textContent = win
+          ? "🎉 Em gái đã được giải cứu!"
+          : "💀 Ninja đã gục ngã...";
+        msgSub.textContent = win
+          ? "Trùm cuối đã bị hạ. Nhấn để chơi lại từ đầu."
+          : "Băng đảng quá mạnh. Nhấn để thử lại.";
+        startBtn.textContent = "Chơi lại";
+      }
+
+      function damagePlayer(amount) {
+        if (ninja.invuln > 0) return;
+        ninja.health -= amount;
+        ninja.invuln = 30; // ~0.5s ở 60fps
+        updateHUD();
+        if (ninja.health <= 0) endGame(false);
+      }
+
+      // ---------- Cập nhật ----------
+      function update() {
+        // di chuyển
+        const targetVx =
+          keys["ArrowLeft"] || keys["KeyA"]
+            ? -MOVE_SPEED
+            : keys["ArrowRight"] || keys["KeyD"]
+              ? MOVE_SPEED
+              : 0;
+        if (targetVx !== 0) ninja.facing = targetVx > 0 ? 1 : -1;
+        ninja.vx += (targetVx - ninja.vx) * 0.35;
+        if (Math.abs(ninja.vx) < 0.05) ninja.vx = 0;
+        if (ninja.onGround) ninja.walkCycle += Math.abs(ninja.vx) * 0.22;
+
+        if (
+          (keys["Space"] || keys["ArrowUp"] || keys["KeyW"]) &&
+          ninja.onGround
+        ) {
+          ninja.vy = JUMP_FORCE;
+          ninja.onGround = false;
+        }
+
+        ninja.vy += GRAVITY;
+        ninja.x += ninja.vx;
+        ninja.y += ninja.vy;
+        ninja.x = Math.max(0, ninja.x);
+
+        ninja.onGround = false;
+        for (const p of platforms) {
+          const nRect = { x: ninja.x, y: ninja.y, w: ninja.w, h: ninja.h };
+          if (rectsOverlap(nRect, p)) {
+            const prevBottom = ninja.y - ninja.vy + ninja.h;
+            if (ninja.vy >= 0 && prevBottom <= p.y + 1) {
+              if (p.bounce) {
+                ninja.y = p.y - ninja.h;
+                ninja.vy = -12.5; // nảy lên khi chạm đáy hố
+              } else {
+                ninja.y = p.y - ninja.h;
+                ninja.vy = 0;
+                ninja.onGround = true;
+              }
+            } else if (ninja.vy < 0 && ninja.y - ninja.vy >= p.y + p.h - 1) {
+              ninja.y = p.y + p.h;
+              ninja.vy = 0;
+            } else if (!p.bounce) {
+              if (ninja.vx > 0) ninja.x = p.x - ninja.w;
+              else if (ninja.vx < 0) ninja.x = p.x + p.w;
+            }
+          }
+        }
+
+        // cổng khóa chặn đường tới trùm
+        if (gate.locked) {
+          const nRect = { x: ninja.x, y: ninja.y, w: ninja.w, h: ninja.h };
+          if (rectsOverlap(nRect, gate)) {
+            if (ninja.x + ninja.w > gate.x) ninja.x = gate.x - ninja.w;
+          }
+        }
+
+        if (ninja.y > H + 150) {
+          damagePlayer(ninja.maxHealth);
+        }
+
+        // gai nhọn
+        const ninjaRect = { x: ninja.x, y: ninja.y, w: ninja.w, h: ninja.h };
+        for (const s of spikes) {
+          if (rectsOverlap(ninjaRect, s)) damagePlayer(1);
+        }
+
+        // hố sụp: rơi vào là mất máu ngay, ở lại lâu sẽ mất máu liên tục cho tới khi thoát/nảy ra
+        let insidePit = false;
+        for (const pit of pits) {
+          if (
+            ninja.x + ninja.w > pit.x &&
+            ninja.x < pit.x + pit.w &&
+            ninja.y + ninja.h > groundLevel
+          ) {
+            insidePit = true;
+            break;
+          }
+        }
+        if (insidePit) {
+          if (ninja.pitTimer <= 0) {
+            damagePlayer(1);
+            ninja.pitTimer = 0.55;
+          }
+        } else {
+          ninja.pitTimer = 0;
+        }
+        if (ninja.pitTimer > 0) ninja.pitTimer -= 1 / 60;
+
+        // vật treo lơ lửng đung đưa qua lại
+        for (const sw of swingers) {
+          sw.phase += sw.speed / 60;
+          sw.x = sw.cx + Math.sin(sw.phase) * sw.range;
+          sw.y = sw.cy;
+          if (
+            rectsOverlap(ninjaRect, {
+              x: sw.x - sw.r,
+              y: sw.y - sw.r,
+              w: sw.r * 2,
+              h: sw.r * 2,
+            })
+          ) {
+            damagePlayer(1);
+          }
+        }
+
+        if (ninja.katanaCooldown > 0) ninja.katanaCooldown--;
+        if (ninja.gunCooldown > 0) ninja.gunCooldown--;
+        if (ninja.invuln > 0) ninja.invuln--;
+        if (ninja.slashTimer > 0) ninja.slashTimer--;
+
+        // tấn công katana
+        if (keys["KeyJ"] && ninja.katanaCooldown <= 0) {
+          ninja.katanaCooldown = 22;
+          ninja.slashTimer = 10;
+          const range = 30;
+          const hitBox = {
+            x: ninja.facing > 0 ? ninja.x + ninja.w : ninja.x - range,
+            y: ninja.y,
+            w: range,
+            h: ninja.h,
+          };
+          for (const e of enemies) {
+            if (
+              e.alive &&
+              rectsOverlap(hitBox, { x: e.x, y: e.y, w: e.w, h: e.h })
+            )
+              killEnemy(e);
+          }
+          if (
+            boss.alive &&
+            boss.active &&
+            rectsOverlap(hitBox, { x: boss.x, y: boss.y, w: boss.w, h: boss.h })
+          ) {
+            hitBoss(1);
+          }
+        }
+
+        // bắn súng
+        if (keys["KeyK"] && ninja.gunCooldown <= 0 && ninja.ammo > 0) {
+          ninja.gunCooldown = 16;
+          ninja.ammo--;
+          updateHUD();
+          playerBullets.push({
+            x: ninja.x + (ninja.facing > 0 ? ninja.w : 0),
+            y: ninja.y + ninja.h / 2,
+            vx: 7 * ninja.facing,
+          });
+        }
+
+        // đạn của ninja
+        for (const b of playerBullets) {
+          b.x += b.vx;
+          for (const e of enemies) {
+            if (
+              e.alive &&
+              rectsOverlap(
+                { x: b.x - 3, y: b.y - 3, w: 6, h: 6 },
+                { x: e.x, y: e.y, w: e.w, h: e.h },
+              )
+            ) {
+              killEnemy(e);
+              b.hit = true;
+            }
+          }
+          if (
+            boss.alive &&
+            boss.active &&
+            rectsOverlap(
+              { x: b.x - 3, y: b.y - 3, w: 6, h: 6 },
+              { x: boss.x, y: boss.y, w: boss.w, h: boss.h },
+            )
+          ) {
+            hitBoss(1);
+            b.hit = true;
+          }
+        }
+        playerBullets = playerBullets.filter(
+          (b) => !b.hit && b.x > cameraX - 50 && b.x < cameraX + W + 50,
+        );
+
+        // AI địch thường
+        for (const e of enemies) {
+          if (!e.alive) continue;
+          const dx = ninja.x - e.x;
+          if (e.type === "gunner") {
+            e.attackTimer -= 1 / 60;
+            if (Math.abs(dx) < e.range && e.attackTimer <= 0) {
+              e.attackTimer = 1.6 + Math.random() * 0.6;
+              enemyBullets.push({
+                x: e.x + e.w / 2,
+                y: e.y + e.h / 2,
+                vx: dx > 0 ? 4.5 : -4.5,
+              });
+            }
+          } else {
+            // puncher / swordsman: đuổi theo và tấn công cận chiến
+            if (Math.abs(dx) < e.range) {
+              e.x += Math.sign(dx) * e.speed;
+              e.walkCycle += e.speed * 0.22;
+            }
+            e.contactCooldown -= 1 / 60;
+            if (
+              e.contactCooldown <= 0 &&
+              rectsOverlap(
+                { x: ninja.x, y: ninja.y, w: ninja.w, h: ninja.h },
+                { x: e.x, y: e.y, w: e.w, h: e.h },
+              )
+            ) {
+              e.contactCooldown = 0.5;
+              damagePlayer(1);
+            }
+          }
+        }
+
+        // đạn của địch
+        for (const b of enemyBullets) {
+          b.x += b.vx;
+          if (
+            rectsOverlap(
+              { x: b.x - 3, y: b.y - 3, w: 6, h: 6 },
+              { x: ninja.x, y: ninja.y, w: ninja.w, h: ninja.h },
+            )
+          ) {
+            damagePlayer(1);
+            b.hit = true;
+          }
+        }
+        enemyBullets = enemyBullets.filter(
+          (b) => !b.hit && b.x > cameraX - 50 && b.x < cameraX + W + 50,
+        );
+
+        // nhặt băng đạn
+        for (const a of ammoPickups) {
+          if (a.taken) continue;
+          if (
+            rectsOverlap(
+              { x: ninja.x, y: ninja.y, w: ninja.w, h: ninja.h },
+              { x: a.x - 8, y: a.y - 8, w: 16, h: 16 },
+            )
+          ) {
+            a.taken = true;
+            ninja.ammo += 5;
+            updateHUD();
+          }
+        }
+
+        // mở khóa cổng khi hết địch
+        if (gate.locked && enemies.every((e) => !e.alive)) {
+          gate.locked = false;
+        }
+
+        // trùm cuối
+        if (!gate.locked && ninja.x > gate.x - 10) {
+          boss.active = true;
+        }
+        if (boss.active && boss.alive) {
+          boss.modeTimer -= 1 / 60;
+          if (boss.contactCooldown > 0) boss.contactCooldown -= 1 / 60;
+          if (boss.modeTimer <= 0) {
+            boss.mode = boss.mode === "patrol" ? "volley" : "patrol";
+            boss.modeTimer = boss.mode === "volley" ? 0.7 : 1.4;
+            if (boss.mode === "volley") {
+              const dir = ninja.x > boss.x ? 1 : -1;
+              for (let i = -1; i <= 1; i++) {
+                enemyBullets.push({
+                  x: boss.x + boss.w / 2,
+                  y: boss.y + boss.h / 2 + i * 10,
+                  vx: 5 * dir,
+                });
+              }
+            }
+          }
+          if (boss.mode === "patrol") {
+            boss.x += boss.dir * boss.speed;
+            boss.walkCycle += boss.speed * 0.22;
+            if (boss.x < boss.arenaMin || boss.x > boss.arenaMax - boss.w)
+              boss.dir *= -1;
+          }
+          if (
+            boss.contactCooldown <= 0 &&
+            rectsOverlap(
+              { x: ninja.x, y: ninja.y, w: ninja.w, h: ninja.h },
+              { x: boss.x, y: boss.y, w: boss.w, h: boss.h },
+            )
+          ) {
+            boss.contactCooldown = 0.85;
+            damagePlayer(1);
+          }
+        }
+
+        const targetCameraX = Math.max(0, ninja.x - W / 2.5);
+        cameraX += (targetCameraX - cameraX) * 0.12;
+      }
+
+      function killEnemy(e) {
+        e.alive = false;
+        updateHUD();
+        if (Math.random() < 0.1) {
+          ammoPickups.push({
+            x: e.x + e.w / 2,
+            y: e.y + e.h / 2,
+            taken: false,
+          });
+        }
+      }
+
+      function hitBoss(amount) {
+        boss.hp -= amount;
+        if (boss.hp <= 0) {
+          boss.alive = false;
+          boss.active = false;
+          setTimeout(() => endGame(true), 300);
+        }
+      }
+
+      // ---------- Vẽ ----------
+      function shadeColor(hex, percent) {
+        const num = parseInt(hex.replace("#", ""), 16);
+        let r = (num >> 16) + percent,
+          g = ((num >> 8) & 0x00ff) + percent,
+          b = (num & 0x0000ff) + percent;
+        r = Math.min(255, Math.max(0, r));
+        g = Math.min(255, Math.max(0, g));
+        b = Math.min(255, Math.max(0, b));
+        return (
+          "#" + (0x1000000 + r * 0x10000 + g * 0x100 + b).toString(16).slice(1)
+        );
+      }
+
+      // Vẽ một đoạn chi (tay/chân) uốn cong nhẹ tại khớp giữa, kèm chấm khớp
+      function limb(x1, y1, x2, y2, bend, color, jointR) {
+        const mx = (x1 + x2) / 2,
+          my = (y1 + y2) / 2;
+        const dx = x2 - x1,
+          dy = y2 - y1;
+        const len = Math.hypot(dx, dy) || 1;
+        const px = -dy / len,
+          py = dx / len;
+        const jx = mx + px * bend,
+          jy = my + py * bend;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(jx, jy);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(jx, jy, jointR, 0, Math.PI * 2);
+        ctx.fill();
+        return { x: jx, y: jy };
+      }
+
+      // Vẽ một nhân vật hình que, gốc tọa độ (0,0) là tâm bounding box (w x h)
+      // armMode: 'idle' | 'walk' | 'slash' | 'gun' | 'punch'
+      function drawStickFigure(h, color, armMode, legPhase, weaponFlash) {
+        const dark = shadeColor(color, -60);
+        const light = shadeColor(color, 60);
+        const headR = h * 0.17;
+        const topY = -h / 2;
+        const headCY = topY + headR + 1;
+        const neckY = headCY + headR;
+        const hipY = neckY + h * 0.34;
+        const footY = h / 2;
+        const shoulderY = neckY + h * 0.05;
+        const jointR = Math.max(1.6, h * 0.045);
+        const lw = Math.max(2.4, h * 0.1);
+
+        // nhún người nhẹ theo nhịp bước khi đang đi
+        const bob =
+          armMode === "walk" ? Math.abs(Math.sin(legPhase)) * h * 0.035 : 0;
+        ctx.save();
+        ctx.translate(0, -bob);
+
+        // bóng đổ dưới chân cho cảm giác đứng trên mặt đất
+        ctx.fillStyle = "rgba(0,0,0,.3)";
+        ctx.beginPath();
+        ctx.ellipse(0, footY + 3 + bob, h * 0.24, h * 0.06, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = lw;
+        ctx.lineCap = "round";
+
+        // chân, so le nhau (một trước một sau) khi bước đi, gối co rõ hơn ở chân sau
+        const legSwing1 = Math.sin(legPhase) * 7;
+        const legSwing2 = Math.sin(legPhase + Math.PI) * 7;
+        limb(0, hipY, legSwing1, footY, -legSwing1 * 0.7, color, jointR);
+        limb(0, hipY, legSwing2, footY, -legSwing2 * 0.7, color, jointR);
+
+        // thân (hơi cong nhẹ tự nhiên)
+        ctx.beginPath();
+        ctx.moveTo(0, neckY);
+        ctx.lineTo(0, hipY);
+        ctx.stroke();
+
+        // tay sau, đung đưa ngược pha với chân khi di chuyển
+        const armSwing =
+          armMode === "walk" || armMode === "idle"
+            ? Math.sin(legPhase + Math.PI) * 5
+            : -h * 0.2;
+        limb(0, shoulderY, armSwing, shoulderY + h * 0.22, -3, color, jointR);
+
+        // tay trước theo hành động
+        let handX = h * 0.2,
+          handY = shoulderY + h * 0.22,
+          bend = 4;
+        if (armMode === "slash") {
+          handX = h * 0.42;
+          handY = shoulderY - h * 0.1;
+          bend = -6;
+        } else if (armMode === "gun") {
+          handX = h * 0.4;
+          handY = shoulderY + h * 0.02;
+          bend = 2;
+        } else if (armMode === "punch") {
+          handX = h * 0.36;
+          handY = shoulderY;
+          bend = 6;
+        }
+        const hand = limb(0, shoulderY, handX, handY, bend, color, jointR);
+
+        // vũ khí / hiệu ứng theo hành động
+        if (armMode === "slash") {
+          ctx.strokeStyle = weaponFlash || light;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(hand.x, hand.y);
+          ctx.lineTo(h * 0.72, shoulderY - h * 0.3);
+          ctx.stroke();
+        } else if (armMode === "gun") {
+          ctx.strokeStyle = "#7d8597";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(hand.x, hand.y);
+          ctx.lineTo(h * 0.58, shoulderY + 0.02 * h);
+          ctx.stroke();
+        }
+
+        // khớp vai/hông
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(0, shoulderY, jointR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(0, hipY, jointR, 0, Math.PI * 2);
+        ctx.fill();
+
+        // đầu: hình tròn có sắc độ + điểm sáng + mắt
+        const headGrad = ctx.createRadialGradient(
+          -headR * 0.3,
+          headCY - headR * 0.3,
+          headR * 0.1,
+          0,
+          headCY,
+          headR,
+        );
+        headGrad.addColorStop(0, light);
+        headGrad.addColorStop(1, color);
+        ctx.fillStyle = headGrad;
+        ctx.beginPath();
+        ctx.arc(0, headCY, headR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = dark;
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+        // mắt (hướng theo facing, luôn vẽ về phía dương vì scale đã lo hướng)
+        ctx.fillStyle = dark;
+        ctx.beginPath();
+        ctx.arc(
+          headR * 0.35,
+          headCY - headR * 0.05,
+          headR * 0.16,
+          0,
+          Math.PI * 2,
+        );
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawHealthBar(x, y, w, h, ratio, color) {
+        ctx.fillStyle = "#1f232f";
+        ctx.fillRect(x, y, w, h);
+        ctx.fillStyle = color;
+        ctx.fillRect(x, y, w * Math.max(0, ratio), h);
+        ctx.strokeStyle = "#0b0d17";
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(x, y, w, h);
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, W, H);
+
+        // ánh đèn thành phố xa xa
+        ctx.fillStyle = "rgba(255,255,255,.35)";
+        for (let i = 0; i < 40; i++) {
+          const sx = (i * 97 - cameraX * 0.2) % W;
+          const sy = (i * 41) % (H * 0.5);
+          ctx.globalAlpha = 0.2 + 0.3 * Math.sin(i + performance.now() / 800);
+          ctx.fillRect((sx + W) % W, sy, 2, 2);
+        }
+        ctx.globalAlpha = 1;
+
+        ctx.save();
+        ctx.translate(-cameraX, 0);
+
+        // nền tảng
+        for (const p of platforms) {
+          ctx.fillStyle = p.ground ? "#1a1029" : "#33394a";
+          ctx.strokeStyle = "#0b0d17";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.roundRect
+            ? ctx.roundRect(p.x, p.y, p.w, p.h, 4)
+            : ctx.rect(p.x, p.y, p.w, p.h);
+          ctx.fill();
+          ctx.stroke();
+        }
+
+        // cổng
+        ctx.fillStyle = gate.locked
+          ? "rgba(215,38,61,.55)"
+          : "rgba(80,220,140,.35)";
+        ctx.fillRect(gate.x, gate.y, gate.w, gate.h);
+        ctx.fillStyle = "#fff";
+        ctx.font = "11px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(
+          gate.locked ? "🔒" : "🔓",
+          gate.x + gate.w / 2,
+          gate.y - 6,
+        );
+
+        // hố sụp: khoảng trống tối phía trên đáy nảy
+        for (const pit of pits) {
+          const grad = ctx.createLinearGradient(0, groundLevel, 0, pit.floorY);
+          grad.addColorStop(0, "rgba(5,4,10,.95)");
+          grad.addColorStop(1, "rgba(40,20,30,.6)");
+          ctx.fillStyle = grad;
+          ctx.fillRect(pit.x, groundLevel, pit.w, pit.floorY - groundLevel);
+          ctx.strokeStyle = "#ef476f";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(pit.x, pit.floorY);
+          ctx.lineTo(pit.x + pit.w, pit.floorY);
+          ctx.stroke();
+        }
+
+        // gai nhọn
+        ctx.fillStyle = "#c7c7d1";
+        for (const s of spikes) {
+          for (let gx = s.x; gx < s.x + s.w; gx += 8) {
+            ctx.beginPath();
+            ctx.moveTo(gx, s.y + s.h);
+            ctx.lineTo(gx + 4, s.y);
+            ctx.lineTo(gx + 8, s.y + s.h);
+            ctx.closePath();
+            ctx.fill();
+          }
+        }
+
+        // vật treo lơ lửng đung đưa
+        for (const sw of swingers) {
+          ctx.strokeStyle = "rgba(200,200,220,.4)";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(sw.cx - sw.range - sw.r, sw.cy);
+          ctx.lineTo(sw.cx + sw.range + sw.r, sw.cy);
+          ctx.stroke();
+          ctx.save();
+          ctx.translate(sw.x, sw.y);
+          ctx.rotate(sw.phase * 2);
+          ctx.fillStyle = "#ef476f";
+          for (let k = 0; k < 6; k++) {
+            ctx.rotate(Math.PI / 3);
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(sw.r, -3);
+            ctx.lineTo(sw.r, 3);
+            ctx.closePath();
+            ctx.fill();
+          }
+          ctx.fillStyle = "#7d1128";
+          ctx.beginPath();
+          ctx.arc(0, 0, sw.r * 0.45, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // vật phẩm băng đạn
+        for (const a of ammoPickups) {
+          if (a.taken) continue;
+          ctx.fillStyle = "#f4c95d";
+          ctx.fillRect(a.x - 6, a.y - 4, 12, 8);
+          ctx.fillStyle = "#1f232f";
+          ctx.fillRect(a.x - 4, a.y - 2, 2, 4);
+          ctx.fillRect(a.x, a.y - 2, 2, 4);
+        }
+
+        // địch (người que)
+        for (const e of enemies) {
+          if (!e.alive) continue;
+          const color =
+            e.type === "puncher"
+              ? "#e08e45"
+              : e.type === "swordsman"
+                ? "#4f8a76"
+                : "#8e44ad";
+          const armMode =
+            e.type === "puncher"
+              ? "punch"
+              : e.type === "swordsman"
+                ? "slash"
+                : "gun";
+          const legPhase = e.walkCycle;
+          const facing = ninja.x > e.x ? 1 : -1;
+          ctx.save();
+          ctx.translate(e.x + e.w / 2, e.y + e.h / 2);
+          ctx.scale(facing, 1);
+          drawStickFigure(e.h, color, armMode, legPhase, color);
+          ctx.restore();
+        }
+
+        // đạn ninja
+        ctx.fillStyle = "#fefae0";
+        for (const b of playerBullets) {
+          ctx.beginPath();
+          ctx.arc(b.x, b.y, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // đạn địch
+        ctx.fillStyle = "#ff4d4d";
+        for (const b of enemyBullets) {
+          ctx.beginPath();
+          ctx.arc(b.x, b.y, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // trùm cuối (người que to hơn)
+        if (boss.alive) {
+          const legPhase = boss.walkCycle;
+          ctx.save();
+          ctx.translate(boss.x + boss.w / 2, boss.y + boss.h / 2);
+          ctx.scale(boss.dir, 1);
+          drawStickFigure(
+            boss.h,
+            "#d7263d",
+            boss.mode === "volley" ? "gun" : "walk",
+            legPhase,
+            "#ff8a8a",
+          );
+          ctx.restore();
+          if (boss.active) {
+            drawHealthBar(
+              boss.x - 10,
+              boss.y - 16,
+              boss.w + 20,
+              6,
+              boss.hp / boss.maxHp,
+              "#d7263d",
+            );
+          }
+        }
+
+        // ninja (người que)
+        ctx.save();
+        ctx.translate(ninja.x + ninja.w / 2, ninja.y + ninja.h / 2);
+        ctx.scale(ninja.facing, 1);
+        if (ninja.invuln > 0 && Math.floor(ninja.invuln / 4) % 2 === 0) {
+          ctx.globalAlpha = 0.4;
+        }
+
+        const legPhase = ninja.walkCycle;
+        const moving = Math.abs(ninja.vx) > 0.1 && ninja.onGround;
+        let armMode = "idle";
+        if (ninja.slashTimer > 0) armMode = "slash";
+        else if (ninja.gunCooldown > 10) armMode = "gun";
+        else if (moving) armMode = "walk";
+
+        drawStickFigure(ninja.h, "#f2ede4", armMode, legPhase, "#fefae0");
+
+        // khăn đỏ trên đầu (dấu ấn ninja)
+        const headR = ninja.h * 0.17,
+          headCY = -ninja.h / 2 + headR + 1;
+        ctx.strokeStyle = "#d7263d";
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(-headR * 0.6, headCY - headR * 0.3);
+        ctx.lineTo(-headR * 1.8, headCY - headR * 0.1);
+        ctx.stroke();
+
+        // vệt chém katana (hiệu ứng cung tròn)
+        if (ninja.slashTimer > 0) {
+          ctx.strokeStyle = "#fefae0";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(16, -2, 22, -0.9, 0.9);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+        ctx.restore();
+
+        ctx.restore();
+      }
+
+      function loop() {
+        if (!running) return;
+        update();
+        draw();
+        requestAnimationFrame(loop);
+      }
+    </script>
+  </body>
+</html>
